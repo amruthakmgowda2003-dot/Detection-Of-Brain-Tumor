@@ -1,0 +1,109 @@
+%********************* DWT Fusion ************************%
+
+clc;
+close all;
+clear all;
+
+%*************** Image Reading ******************%
+
+%*************** JPEG IMAGES ********************%
+image1 = im2double(imread('CTptmr1.jpg'));
+image1 = imresize(image1,[256 256]);
+image1 = rgb2gray(image1);
+image1 = im2bw(image1);
+image2 = im2double(imread('MRIptmr1.jpg'));
+image2 = imresize(image2,[256 256]);
+image2 = rgb2gray(image2);
+image2 = im2bw(image2);
+
+wname = 'haar';
+
+figure(1); subplot(2,2,1);
+imshow(image1,[]);
+figure(1); subplot(2,2,2);
+imshow(image2,[]);
+
+% ************ Decomposition of Image 1 **************%
+%***************************************************%
+
+[a1,c1,b1,d1] = dwt2(image1,wname);
+[aa1,cc1,bb1,dd1] = dwt2(a1,wname);
+[aaa1,ccc1,bbb1,ddd1] = dwt2(aa1,wname);
+
+
+figure(2);
+imshow([a1 c1; b1 d1], []);
+figure(3);
+imshow([[aa1 cc1;bb1 dd1] c1; b1 d1],[]);
+figure(4);
+imshow([[[aaa1 ccc1; bbb1 ddd1] cc1; bb1 dd1] c1 ;b1 d1],[]);
+
+% ************ Decomposition of Image 2 **************%
+%***************************************************%
+
+[a2,c2,b2,d2] = dwt2(image2,wname);
+[aa2,cc2,bb2,dd2] = dwt2(a2,wname);
+[aaa2,ccc2,bbb2,ddd2] = dwt2(aa2,wname);
+
+
+figure(5);
+imshow([a2 c2; b2 d2], []);
+figure(6);
+imshow([[aa2 cc2;bb2 dd2] c2; b2 d2],[]);
+figure(7);
+imshow([[[aaa2 ccc2; bbb2 ddd2] cc2; bb2 dd2] c2 ;b2 d2],[]);
+
+
+ %********************** PCA Fusion *******************%
+ 
+ %**********Third level fusion************************%
+ 
+ aaa_fuse = 0.5*(aaa1+aaa2);
+ D = (abs(ccc1)-abs(ccc2))>=0;
+ ccc_fuse = D.*ccc1+(~D).*ccc2;
+ D = (abs(bbb1)-abs(bbb2))>=0;
+ bbb_fuse = D.*bbb1+(~D).*bbb2;
+ D = (abs(ddd1)-abs(ddd2))>=0;
+ ddd_fuse = D.*ddd1+(~D).*ddd2;
+ 
+ %**********Second level fusion**********************%
+ 
+ D = (abs(cc1)-abs(cc2))>=0;
+ cc_fuse = D.*cc1+(~D).*cc2;
+ D = (abs(bb1)-abs(bb2))>=0;
+ bb_fuse = D.*bb1+(~D).*bb2;
+ D = (abs(dd1)-abs(dd2))>=0;
+ dd_fuse = D.*dd1+(~D).*dd2;
+ 
+ %**********First level fusion***********************%
+ 
+ D = (abs(c1)-abs(c2))>=0;
+ c_fuse = D.*c1+(~D).*c2;
+ D = (abs(b1)-abs(b2))>=0;
+ b_fuse = D.*b1+(~D).*b2;
+ D = (abs(d1)-abs(d2))>=0;
+ d_fuse = D.*d1+(~D).*d2;
+ 
+ %*****************Inverse DWT***********************%
+ 
+ level_2 = idwt2(aaa_fuse,ccc_fuse,bbb_fuse,ddd_fuse,wname);
+ level_1 = idwt2(level_2,cc_fuse,bb_fuse,dd_fuse,wname);
+ fused_image = idwt2(level_1,c_fuse,b_fuse,d_fuse,wname);
+ figure(1); subplot(2,2,3:4);
+ imshow(fused_image,[]);
+ imt = im2double(imread('REFm1.jpg'));
+ imt = imresize(imt,[256 256]);
+ %imt = im2bw(imt);
+ % fusion quality evaluation metrics
+[RMSE,PFE,MAE,CORR,SNR,PSNR,MI,QI,SSIM] = pereval(imt,image1,image2,fused_image);
+fprintf('\n   Fusion Quality Evaluation Metrics:\n');
+fprintf('\nroot mean square error           (RMSE): %3f2',RMSE);
+fprintf('\nPercentage fit error              (PFE): %3f2',PFE);
+fprintf('\nmean absolute error               (MAE): %3f2',MAE);
+fprintf('\nCorrelation                      (CORR): %3f2',CORR);
+fprintf('\nsignal to noise ration            (SNR): %3f2',SNR);
+fprintf('\npeak signal to noise ration      (PSNR): %3f2',PSNR);
+fprintf('\nmutual information                 (MI): %3f2',MI);
+fprintf('\nquality index                      (QI): %3f2',QI);
+fprintf('\nmeasure of structural similarity (SSIM): %3f2',SSIM);
+fprintf('\n\n');
